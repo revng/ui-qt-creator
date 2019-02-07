@@ -561,7 +561,7 @@ protected:
     /*!
        Returns whether the link was opened successfully.
      */
-    bool openLink(const Utils::Link &link, bool inNextSplit = false);
+    virtual bool openLink(const Utils::Link &link, bool inNextSplit = false);
 
     /*!
       Reimplement this function to change the default replacement text.
