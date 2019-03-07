@@ -132,3 +132,7 @@ for(p, SUBDIRS) {
 linux-* {
      SUBDIRS += debugger/ptracepreload.pro
 }
+
+!isEmpty(ONLY_PLUGINS) {
+  SUBDIRS = $$ONLY_PLUGINS
+}
