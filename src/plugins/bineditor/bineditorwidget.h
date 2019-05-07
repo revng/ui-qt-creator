@@ -182,7 +182,11 @@ private:
     void asDouble(qint64 offset, double &value, bool old) const;
     QString toolTip(const QHelpEvent *helpEvent) const;
 
+    bool m_draggingLine;
+    int m_draggingStartOffset;
+
     int m_bytesPerLine;
+    int m_pixelsAfterLastHex;
     int m_unmodifiedState;
     int m_readOnly;
     int m_margin;
