@@ -130,6 +130,12 @@ public:
     void setMarkup(const QList<Markup> &markup);
     void setNewWindowRequestAllowed(bool c);
 
+    int getGroupsElements() const;
+    void setGroupsElements(int numElements);
+
+    bool getGroupsAligned() const;
+    void setGroupsAligned(bool aligned);
+
 signals:
     void modificationChanged(bool modified);
     void undoAvailable(bool);
@@ -181,9 +187,20 @@ private:
     void asFloat(qint64 offset, float &value, bool old) const;
     void asDouble(qint64 offset, double &value, bool old) const;
     QString toolTip(const QHelpEvent *helpEvent) const;
+    void stopAndReturnDragLine();
+    void prepareDragLineAnimation();
+    void performDragLineAnimation();
+    int getFullGroupSpace() const; 
 
+    QBasicTimer m_dragReturnTimer;
     bool m_draggingLine;
     int m_draggingStartOffset;
+    int m_dragLinePos;
+
+    bool m_enableGroups;
+    bool m_groupsAligned;
+    int m_groupElements;
+    int m_groupSpace;
 
     int m_bytesPerLine;
     int m_pixelsAfterLastHex;
