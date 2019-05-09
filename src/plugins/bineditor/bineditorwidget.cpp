@@ -138,6 +138,8 @@ private:
 BinEditorWidget::BinEditorWidget(QWidget *parent)
     : QAbstractScrollArea(parent), d(new BinEditorWidgetPrivate(this))
 {
+    m_dragLineEnabled = true;
+    m_dragFixToFirstLine = true;
     m_enableGroups = false;
     m_groupsAligned = false;
     m_groupElements = 1;
@@ -380,7 +382,6 @@ void BinEditorWidget::timerEvent(QTimerEvent *e)
         updateLines();
     } else if (e->timerId() == m_dragReturnTimer.timerId()) {
         m_pixelsAfterLastHex /= 2;
-        init();
         viewport()->update();
         if(m_pixelsAfterLastHex == 0 && m_dragReturnTimer.isActive())
             m_dragReturnTimer.stop();
@@ -1099,8 +1100,11 @@ void BinEditorWidget::mousePressEvent(QMouseEvent *e)
         return;
 
     if (abs(e->pos().x() - x2) < 4) { // start drag
+        if(!m_dragLineEnabled)
+            return;
         if(m_dragReturnTimer.isActive())
             m_dragReturnTimer.stop();
+        saveTopLineAddress();
         m_draggingLine = true;
         m_draggingStartOffset = e->pos().x() - x2;
         return;
@@ -1123,7 +1127,8 @@ void BinEditorWidget::mouseMoveEvent(QMouseEvent *e)
                    + m_charWidth / 2 + m_pixelsAfterLastHex + fullGroupSpace;
 
     if (!(e->buttons() & Qt::LeftButton)) {
-        setCursor(abs(e->pos().x() - x2) < 4 ? Qt::SizeHorCursor : Qt::ArrowCursor);
+        bool showDragCursor = m_dragLineEnabled && abs(e->pos().x() - x2) < 4;
+        setCursor(showDragCursor ? Qt::SizeHorCursor : Qt::ArrowCursor);
         return;
     }
 
@@ -1171,6 +1176,7 @@ void BinEditorWidget::mouseMoveEvent(QMouseEvent *e)
             }
             init();
         }
+        restoreTopLineAddress();
         viewport()->update();
         return;
     }
@@ -1189,8 +1195,10 @@ void BinEditorWidget::mouseMoveEvent(QMouseEvent *e)
 
 void BinEditorWidget::mouseReleaseEvent(QMouseEvent *)
 {
-    if (m_draggingLine)
+    if (m_draggingLine) {
         stopAndReturnDragLine();
+        restoreTopLineAddress();
+    }
 
     if (m_autoScrollTimer.isActive()) {
         m_autoScrollTimer.stop();
@@ -1887,6 +1895,7 @@ void BinEditorWidget::setGroupsElements(int numElements)
 
     performDragLineAnimation();
     init();
+    restoreTopLineAddress();
     viewport()->update();
 }
 
@@ -1940,8 +1949,38 @@ void BinEditorWidget::setGroupsAligned(bool aligned)
     performDragLineAnimation();
     if (m_enableGroups) {
         init();
+        restoreTopLineAddress();
         viewport()->update();
     }
+}
+
+void BinEditorWidget::saveTopLineAddress()
+{
+    const int topLine = verticalScrollBar()->value();
+    m_topLineAddr = topLine * m_bytesPerLine;
+}
+
+void BinEditorWidget::restoreTopLineAddress()
+{
+    if(!m_dragFixToFirstLine)
+        return;
+    verticalScrollBar()->setValue(m_topLineAddr / m_bytesPerLine);
+}
+
+void BinEditorWidget::enableColumnResize(bool enable) {
+    m_dragLineEnabled = enable;
+}
+
+bool BinEditorWidget::isColumnResizeEnabled() const {
+    return m_dragLineEnabled;;
+}
+
+void BinEditorWidget::syncToFirstAddrOnResize(bool enable) {
+    m_dragFixToFirstLine = enable;
+}
+
+bool BinEditorWidget::syncToFirstAddrOnResize() const {
+    return m_dragFixToFirstLine;
 }
 
 } // namespace Internal

@@ -136,6 +136,12 @@ public:
     bool getGroupsAligned() const;
     void setGroupsAligned(bool aligned);
 
+    void enableColumnResize(bool enable);
+    bool isColumnResizeEnabled() const;
+
+    void syncToFirstAddrOnResize(bool enable);
+    bool syncToFirstAddrOnResize() const;
+
 signals:
     void modificationChanged(bool modified);
     void undoAvailable(bool);
@@ -187,15 +193,21 @@ private:
     void asFloat(qint64 offset, float &value, bool old) const;
     void asDouble(qint64 offset, double &value, bool old) const;
     QString toolTip(const QHelpEvent *helpEvent) const;
+
     void stopAndReturnDragLine();
     void prepareDragLineAnimation();
     void performDragLineAnimation();
     int getFullGroupSpace() const; 
+    void saveTopLineAddress();
+    void restoreTopLineAddress();
 
     QBasicTimer m_dragReturnTimer;
     bool m_draggingLine;
+    bool m_dragLineEnabled;
+    bool m_dragFixToFirstLine;
     int m_draggingStartOffset;
     int m_dragLinePos;
+    quint64 m_topLineAddr;
 
     bool m_enableGroups;
     bool m_groupsAligned;
