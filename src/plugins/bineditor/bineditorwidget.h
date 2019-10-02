@@ -130,6 +130,12 @@ public:
     void setMarkup(const QList<Markup> &markup);
     void setNewWindowRequestAllowed(bool c);
 
+    void setDisplayedStartAddr(quint64 startAddr);
+    quint64 getDisplayedStartAddr() const;
+
+    void setBytesToSkip(quint64 startByte);
+    quint64 getBytesToSkip() const;
+
     int getGroupsElements() const;
     void setGroupsElements(int numElements);
 
@@ -138,6 +144,7 @@ public:
 
     void enableColumnResize(bool enable);
     bool isColumnResizeEnabled() const;
+    int  getBytesPerLine() const { return m_bytesPerLine; }
 
     void syncToFirstAddrOnResize(bool enable);
     bool syncToFirstAddrOnResize() const;
@@ -230,6 +237,8 @@ private:
     qint64 m_numVisibleLines;
 
     quint64 m_baseAddr;
+    quint64 m_skipBytes;
+    quint64 m_displayStartAddr;
 
     bool m_cursorVisible;
     qint64 m_cursorPosition;
