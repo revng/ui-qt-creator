@@ -1195,6 +1195,7 @@ void BinEditorWidget::mouseMoveEvent(QMouseEvent *e)
             }
             m_bytesPerLine = std::max(1, m_bytesPerLine);
             init();
+            emit columnResized();
         }
         restoreTopLineAddress();
         viewport()->update();
@@ -1993,7 +1994,7 @@ void BinEditorWidget::enableColumnResize(bool enable) {
 }
 
 bool BinEditorWidget::isColumnResizeEnabled() const {
-    return m_dragLineEnabled;;
+    return m_dragLineEnabled;
 }
 
 void BinEditorWidget::syncToFirstAddrOnResize(bool enable) {

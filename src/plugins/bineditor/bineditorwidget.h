@@ -154,6 +154,7 @@ signals:
     void undoAvailable(bool);
     void redoAvailable(bool);
     void cursorPositionChanged(int position);
+    void columnResized();
 
 private:
     void scrollContentsBy(int dx, int dy);
