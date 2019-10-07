@@ -133,6 +133,7 @@ public:
     void setDisplayedStartAddr(quint64 startAddr);
     quint64 getDisplayedStartAddr() const;
 
+    void enableSkipBytesInContextMenu(bool enable);
     void setBytesToSkip(quint64 startByte);
     quint64 getBytesToSkip() const;
 
@@ -155,6 +156,7 @@ signals:
     void redoAvailable(bool);
     void cursorPositionChanged(int position);
     void columnResized();
+    void skipBytesRequestChanged();
 
 private:
     void scrollContentsBy(int dx, int dy);
@@ -240,6 +242,7 @@ private:
     quint64 m_baseAddr;
     quint64 m_skipBytes;
     quint64 m_displayStartAddr;
+    bool m_enableSkipBytesInContext;
 
     bool m_cursorVisible;
     qint64 m_cursorPosition;

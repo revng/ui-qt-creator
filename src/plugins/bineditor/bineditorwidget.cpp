@@ -144,6 +144,7 @@ BinEditorWidget::BinEditorWidget(QWidget *parent)
     m_groupsAligned = false;
     m_groupElements = 1;
 
+    m_enableSkipBytesInContext = false;
     m_skipBytes = 0;
     m_displayStartAddr = 0;
 
@@ -1783,10 +1784,18 @@ void BinEditorWidget::contextMenuEvent(QContextMenuEvent *event)
     groupByMenu->addAction(groupBy4Action);
     groupByMenu->addAction(groupBy8Action);
 
-    auto groupsAligned = new QAction(tr("Align groups to memory"), contextMenu);
+    auto groupsAligned = new QAction(tr("Resize groups by blocks"), contextMenu);
     groupsAligned->setCheckable(true);
     groupsAligned->setChecked(m_groupsAligned);
     contextMenu->addAction(groupsAligned);
+
+    QAction* bytesAligned = nullptr;
+    if(m_enableSkipBytesInContext) {
+        bytesAligned = new QAction(tr("Align bytes to binary"), contextMenu);
+        bytesAligned->setCheckable(true);
+        bytesAligned->setChecked(m_skipBytes > 0);
+        contextMenu->addAction(bytesAligned);
+    }
 
     QAction *action = contextMenu->exec(event->globalPos());
     if (!contextMenu)
@@ -1816,6 +1825,8 @@ void BinEditorWidget::contextMenuEvent(QContextMenuEvent *event)
         setGroupsElements(8);
     else if (action == groupsAligned)
         setGroupsAligned(!m_groupsAligned);
+    else if (bytesAligned && action == bytesAligned)
+        emit skipBytesRequestChanged();
     delete contextMenu;
 }
 
@@ -2021,6 +2032,10 @@ void BinEditorWidget::setDisplayedStartAddr(quint64 startAddr) {
 
 quint64 BinEditorWidget::getDisplayedStartAddr() const {
     return m_displayStartAddr;
+}
+
+void BinEditorWidget::enableSkipBytesInContextMenu(bool enable) {
+    m_enableSkipBytesInContext = enable;
 }
 
 } // namespace Internal
