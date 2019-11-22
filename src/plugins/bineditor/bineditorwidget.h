@@ -130,11 +130,33 @@ public:
     void setMarkup(const QList<Markup> &markup);
     void setNewWindowRequestAllowed(bool c);
 
+    void setDisplayedStartAddr(quint64 startAddr);
+    quint64 getDisplayedStartAddr() const;
+
+    void enableSkipBytesInContextMenu(bool enable);
+    void setBytesToSkip(quint64 startByte);
+    quint64 getBytesToSkip() const;
+
+    int getGroupsElements() const;
+    void setGroupsElements(int numElements);
+
+    bool getGroupsAligned() const;
+    void setGroupsAligned(bool aligned);
+
+    void enableColumnResize(bool enable);
+    bool isColumnResizeEnabled() const;
+    int  getBytesPerLine() const { return m_bytesPerLine; }
+
+    void syncToFirstAddrOnResize(bool enable);
+    bool syncToFirstAddrOnResize() const;
+
 signals:
     void modificationChanged(bool modified);
     void undoAvailable(bool);
     void redoAvailable(bool);
     void cursorPositionChanged(int position);
+    void columnResized();
+    void skipBytesRequestChanged();
 
 private:
     void scrollContentsBy(int dx, int dy);
@@ -182,7 +204,28 @@ private:
     void asDouble(qint64 offset, double &value, bool old) const;
     QString toolTip(const QHelpEvent *helpEvent) const;
 
+    void stopAndReturnDragLine();
+    void prepareDragLineAnimation();
+    void performDragLineAnimation();
+    int getFullGroupSpace() const; 
+    void saveTopLineAddress();
+    void restoreTopLineAddress();
+
+    QBasicTimer m_dragReturnTimer;
+    bool m_draggingLine;
+    bool m_dragLineEnabled;
+    bool m_dragFixToFirstLine;
+    int m_draggingStartOffset;
+    int m_dragLinePos;
+    quint64 m_topLineAddr;
+
+    bool m_enableGroups;
+    bool m_groupsAligned;
+    int m_groupElements;
+    int m_groupSpace;
+
     int m_bytesPerLine;
+    int m_pixelsAfterLastHex;
     int m_unmodifiedState;
     int m_readOnly;
     int m_margin;
@@ -197,6 +240,9 @@ private:
     qint64 m_numVisibleLines;
 
     quint64 m_baseAddr;
+    quint64 m_skipBytes;
+    quint64 m_displayStartAddr;
+    bool m_enableSkipBytesInContext;
 
     bool m_cursorVisible;
     qint64 m_cursorPosition;

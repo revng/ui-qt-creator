@@ -39,7 +39,6 @@
 #include <utils/fadingindicator.h>
 #include <utils/fileutils.h>
 #include <utils/qtcassert.h>
-
 #include <QByteArrayMatcher>
 #include <QDebug>
 #include <QFile>
@@ -139,6 +138,18 @@ private:
 BinEditorWidget::BinEditorWidget(QWidget *parent)
     : QAbstractScrollArea(parent), d(new BinEditorWidgetPrivate(this))
 {
+    m_dragLineEnabled = true;
+    m_dragFixToFirstLine = true;
+    m_enableGroups = false;
+    m_groupsAligned = false;
+    m_groupElements = 1;
+
+    m_enableSkipBytesInContext = false;
+    m_skipBytes = 0;
+    m_displayStartAddr = 0;
+
+    m_draggingLine = false;
+    m_pixelsAfterLastHex = 0;
     m_bytesPerLine = 16;
     m_ieditor = 0;
     m_baseAddr = 0;
@@ -164,6 +175,7 @@ BinEditorWidget::BinEditorWidget(QWidget *parent)
             &TextEditor::TextEditorSettings::fontSettingsChanged,
             this, &BinEditorWidget::setFontSettings);
 
+    setMouseTracking(true);
 }
 
 BinEditorWidget::~BinEditorWidget()
@@ -188,6 +200,7 @@ void BinEditorWidget::init()
     m_charWidth = fm.width(QChar(QLatin1Char('M')));
     m_margin = m_charWidth;
     m_columnWidth = 2 * m_charWidth + fm.width(QChar(QLatin1Char(' ')));
+    m_groupSpace = m_columnWidth / 2;
     m_numLines = m_size / m_bytesPerLine + 1;
     m_numVisibleLines = viewport()->height() / m_lineHeight;
     m_textWidth = m_bytesPerLine * m_charWidth + m_charWidth;
@@ -371,6 +384,11 @@ void BinEditorWidget::timerEvent(QTimerEvent *e)
     } else if (e->timerId() == m_cursorBlinkTimer.timerId()) {
         m_cursorVisible = !m_cursorVisible;
         updateLines();
+    } else if (e->timerId() == m_dragReturnTimer.timerId()) {
+        m_pixelsAfterLastHex /= 2;
+        viewport()->update();
+        if(m_pixelsAfterLastHex == 0 && m_dragReturnTimer.isActive())
+            m_dragReturnTimer.stop();
     }
     QAbstractScrollArea::timerEvent(e);
 }
@@ -460,6 +478,7 @@ void BinEditorWidget::setSizes(quint64 startAddr, qint64 range, int blockSize)
     int newAddressBytes = (newBaseAddr + newSize < quint64(1) << 32
                    && newBaseAddr + newSize >= newBaseAddr) ? 4 : 8;
 
+    printf("setSizes: newBaseAddr: %llx, newSize: %llu\n", newBaseAddr, newSize);
 
 
     if (newBlockSize == m_blockSize
@@ -540,9 +559,11 @@ QRect BinEditorWidget::cursorRect() const
     int y = (line - topLine) * m_lineHeight;
     int xoffset = horizontalScrollBar()->value();
     int column = m_cursorPosition % m_bytesPerLine;
+    const int accumGroupSpace = m_enableGroups ? (column / m_groupElements) * m_groupSpace : 0;
+    const int fullGroupSpace = m_enableGroups ? getFullGroupSpace() : 0;
     int x = m_hexCursor
-            ? (-xoffset + m_margin + m_labelWidth + column * m_columnWidth)
-            : (-xoffset + m_margin + m_labelWidth + m_bytesPerLine * m_columnWidth
+            ? (-xoffset + m_margin + m_labelWidth + column * m_columnWidth + accumGroupSpace)
+            : (-xoffset + m_margin + m_labelWidth + m_bytesPerLine * m_columnWidth + fullGroupSpace
                + m_charWidth + column * m_charWidth);
     int w = m_hexCursor ? m_columnWidth : m_charWidth;
     return QRect(x, y, w, m_lineHeight);
@@ -554,16 +575,18 @@ Utils::optional<qint64> BinEditorWidget::posAt(const QPoint &pos, bool includeEm
     int x = xoffset + pos.x() - m_margin - m_labelWidth;
     if (!includeEmptyArea && x < 0)
         return Utils::nullopt;
-    int column = qMin(15, qMax(0,x) / m_columnWidth);
+    int accumGroupSpace = m_enableGroups ? x / (m_columnWidth * m_groupElements + m_groupSpace) * m_groupSpace : 0;
+    int column = qMin(m_bytesPerLine - 1, qMax(0,x - accumGroupSpace) / m_columnWidth);
     const qint64 topLine = verticalScrollBar()->value();
     const qint64 line = topLine + pos.y() / m_lineHeight;
 
     // "clear text" area
-    if (x > m_bytesPerLine * m_columnWidth + m_charWidth/2) {
-        x -= m_bytesPerLine * m_columnWidth + m_charWidth;
-        for (column = 0; column < 16; ++column) {
+    int fullGroupSpace = m_enableGroups ? getFullGroupSpace() : 0;
+    if (x > m_bytesPerLine * m_columnWidth + m_charWidth/2 + fullGroupSpace) {
+        x -= m_bytesPerLine * m_columnWidth + m_charWidth + fullGroupSpace;
+        for (column = 0; column < m_bytesPerLine; ++column) {
             const qint64 dataPos = line * m_bytesPerLine + column;
-            if (dataPos < 0 || dataPos >= m_size)
+            if (dataPos < qint64(m_skipBytes) || dataPos >= m_size)
                 break;
             QChar qc(QLatin1Char(dataAt(dataPos)));
             if (!qc.isPrint())
@@ -579,14 +602,15 @@ Utils::optional<qint64> BinEditorWidget::posAt(const QPoint &pos, bool includeEm
     const qint64 bytePos = line * m_bytesPerLine + column;
     if (!includeEmptyArea && bytePos >= m_size)
         return Utils::nullopt;
-    return qMin(m_size - 1, bytePos);
+    return qMax(qint64(m_skipBytes), qMin(m_size - 1, bytePos));
 }
 
 bool BinEditorWidget::inTextArea(const QPoint &pos) const
 {
     int xoffset = horizontalScrollBar()->value();
     int x = xoffset + pos.x() - m_margin - m_labelWidth;
-    return (x > m_bytesPerLine * m_columnWidth + m_charWidth/2);
+    int fullGroupSpace = m_groupSpace ? (m_bytesPerLine / m_columnWidth - 1) * m_groupSpace : 0;
+    return (x > fullGroupSpace + m_bytesPerLine * m_columnWidth + m_charWidth/2);
 }
 
 void BinEditorWidget::updateLines()
@@ -616,6 +640,7 @@ int BinEditorWidget::dataIndexOf(const QByteArray &pattern, qint64 from, bool ca
     char *b = buffer.data();
     QByteArrayMatcher matcher(pattern);
 
+    from = std::max(qint64(m_skipBytes), from);
     qint64 block = from / m_blockSize;
     const int end = qMin<qint64>(from + SearchStride, m_size);
     while (from < end) {
@@ -650,7 +675,7 @@ int BinEditorWidget::dataLastIndexOf(const QByteArray &pattern, qint64 from, boo
     if (from == -1)
         from = m_size;
     int block = from / m_blockSize;
-    const int lowerBound = qMax(qint64(0), from - SearchStride);
+    const int lowerBound = qMax(qint64(m_skipBytes), from - SearchStride);
     while (from > lowerBound) {
         if (!requestDataAt(qint64(block) * m_blockSize))
             return -1;
@@ -701,7 +726,7 @@ int BinEditorWidget::find(const QByteArray &pattern_arg, qint64 from,
     if (pos >= m_size)
         pos = -1;
 
-    if (pos >= 0) {
+    if (pos >= qint64(m_skipBytes)) {
         setCursorPosition(pos);
         setCursorPosition(pos + (found == pos ? pattern.size() : hexPattern.size()) - 1, KeepAnchor);
     }
@@ -738,8 +763,11 @@ void BinEditorWidget::drawItems(QPainter *painter, int x, int y, const QString &
     if (m_isMonospacedFont) {
         painter->drawText(x, y, itemString);
     } else {
-        for (int i = 0; i < m_bytesPerLine; ++i)
-            painter->drawText(x + i*m_columnWidth, y, itemString.mid(i*3, 2));
+        for (int i = 0; i < m_bytesPerLine; ++i) {
+            int xi = x + i * m_columnWidth;
+            xi += m_enableGroups ? (i / m_groupElements) * m_groupSpace : 0;
+            painter->drawText(xi, y, itemString.mid(i*3, 2));
+        }
     }
 }
 
@@ -748,8 +776,9 @@ void BinEditorWidget::drawChanges(QPainter *painter, int x, int y, const char *c
     const QBrush red(QColor(250, 150, 150));
     for (int i = 0; i < m_bytesPerLine; ++i) {
         if (changes[i]) {
-            painter->fillRect(x + i*m_columnWidth, y - m_ascent,
-                2*m_charWidth, m_lineHeight, red);
+            int xi = x + i * m_columnWidth;
+            xi += m_enableGroups ? (i / m_groupElements) * m_groupSpace : 0;
+            painter->fillRect(xi, y - m_ascent, 2 * m_charWidth, m_lineHeight, red);
         }
     }
 }
@@ -789,13 +818,17 @@ void BinEditorWidget::paintEvent(QPaintEvent *e)
     const int topLine = verticalScrollBar()->value();
     const int xoffset = horizontalScrollBar()->value();
     const int x1 = -xoffset + m_margin + m_labelWidth - m_charWidth/2 - 1;
-    const int x2 = -xoffset + m_margin + m_labelWidth + m_bytesPerLine * m_columnWidth + m_charWidth/2;
+    const int x2 = -xoffset + m_margin + m_labelWidth + m_bytesPerLine * m_columnWidth
+                   + m_charWidth / 2 + m_pixelsAfterLastHex
+                   + (m_enableGroups ? getFullGroupSpace() : 0);
+
     painter.drawLine(x1, 0, x1, viewport()->height());
     painter.drawLine(x2, 0, x2, viewport()->height());
 
     int viewport_height = viewport()->height();
-    for (int i = 0; i < 8; ++i) {
+    for (int i = 0; i < m_bytesPerLine / 2; ++i) {
         int bg_x = -xoffset +  m_margin + (2 * i + 1) * m_columnWidth + m_labelWidth;
+        bg_x += m_enableGroups ? ((2 * i + 1) / m_groupElements) * m_groupSpace : 0;
         QRect r(bg_x - m_charWidth/2, 0, m_columnWidth, viewport_height);
         painter.fillRect(e->rect() & r, palette().alternateBase());
     }
@@ -803,9 +836,11 @@ void BinEditorWidget::paintEvent(QPaintEvent *e)
     int matchLength = 0;
 
     QByteArray patternData, patternDataHex;
-    int patternOffset = qMax(0, topLine*m_bytesPerLine - m_searchPattern.size());
+    int patternOffset = qMax(0, topLine * m_bytesPerLine - m_searchPattern.size());
     if (!m_searchPattern.isEmpty()) {
-        patternData = dataMid(patternOffset, m_numVisibleLines * m_bytesPerLine + (topLine*m_bytesPerLine - patternOffset));
+        patternData = dataMid(patternOffset,
+                              m_numVisibleLines * m_bytesPerLine
+                                  + (topLine * m_bytesPerLine - patternOffset));
         patternDataHex = patternData;
         if (!m_caseSensitiveSearch)
             patternData = patternData.toLower();
@@ -843,7 +878,7 @@ void BinEditorWidget::paintEvent(QPaintEvent *e)
             continue;
 
         painter.drawText(-xoffset, i * m_lineHeight + m_ascent,
-                         addressString(lineAddress));
+                         addressString(lineAddress + m_displayStartAddr));
 
         int cursor = -1;
         if (line * m_bytesPerLine <= m_cursorPosition
@@ -859,12 +894,17 @@ void BinEditorWidget::paintEvent(QPaintEvent *e)
         if (hasData || hasOldData) {
             for (int c = 0; c < m_bytesPerLine; ++c) {
                 qint64 pos = line * m_bytesPerLine + c;
+                quint64 curAddr = pos + m_baseAddr;
                 if (pos >= m_size)
                     break;
-                QChar qc(QLatin1Char(dataAt(pos, isOld)));
-                if (qc.unicode() >= 127 || !qc.isPrint())
-                    qc = 0xB7;
-                printable += qc;
+                if (curAddr < m_skipBytes)
+                    printable += " ";
+                else {
+                    QChar qc(QLatin1Char(dataAt(pos, isOld)));
+                    if (qc.unicode() >= 127 || !qc.isPrint())
+                        qc = 0xB7;
+                    printable += qc;
+                }
             }
         } else {
             printable = QString(m_bytesPerLine, QLatin1Char(' '));
@@ -879,6 +919,15 @@ void BinEditorWidget::paintEvent(QPaintEvent *e)
         if (hasData || hasOldData) {
             for (int c = 0; c < m_bytesPerLine; ++c) {
                 qint64 pos = line * m_bytesPerLine + c;
+                quint64 realAddr = pos + m_baseAddr;
+                if (realAddr < m_skipBytes) {
+                    quint64 curAddr = line * m_bytesPerLine;
+                    while (c < m_bytesPerLine && (curAddr + c) < m_skipBytes) {
+                        itemStringData[c*3] = itemStringData[c*3+1] = QLatin1Char(' ');
+                        ++c;
+                    }
+                    pos = line * m_bytesPerLine + c;
+                }
                 if (pos >= m_size) {
                     while (c < m_bytesPerLine) {
                         itemStringData[c*3] = itemStringData[c*3+1] = QLatin1Char(' ');
@@ -887,8 +936,11 @@ void BinEditorWidget::paintEvent(QPaintEvent *e)
                     break;
                 }
                 if (foundPatternAt >= 0 && pos >= foundPatternAt + matchLength)
-                    foundPatternAt = findPattern(patternData, patternDataHex, foundPatternAt + matchLength, patternOffset, &matchLength);
-
+                    foundPatternAt = findPattern(patternData,
+                                                 patternDataHex,
+                                                 foundPatternAt + matchLength,
+                                                 patternOffset,
+                                                 &matchLength);
 
                 const uchar value = uchar(dataAt(pos, isOld));
                 itemStringData[c*3] = QLatin1Char(hex[value >> 4]);
@@ -898,7 +950,8 @@ void BinEditorWidget::paintEvent(QPaintEvent *e)
                     somethingChanged = true;
                 }
 
-                int item_x = -xoffset +  m_margin + c * m_columnWidth + m_labelWidth;
+                int item_x = -xoffset + m_margin + c * m_columnWidth + m_labelWidth;
+                item_x += m_enableGroups ? (c / m_groupElements) * m_groupSpace : 0;
 
                 QColor color;
                 foreach (const Markup &m, m_markup) {
@@ -912,8 +965,10 @@ void BinEditorWidget::paintEvent(QPaintEvent *e)
 
                 if (color.isValid()) {
                     painter.fillRect(item_x - m_charWidth/2, y-m_ascent, m_columnWidth, m_lineHeight, color);
-                    int printable_item_x = -xoffset + m_margin + m_labelWidth + m_bytesPerLine * m_columnWidth + m_charWidth
-                                           + fm.width(printable.left(c));
+                    int printable_item_x = -xoffset + m_margin + m_labelWidth
+                                           + m_bytesPerLine * m_columnWidth + m_charWidth
+                                           + m_pixelsAfterLastHex + fm.width(printable.left(c));
+                    printable_item_x += m_enableGroups ? getFullGroupSpace() : 0;
                     painter.fillRect(printable_item_x, y-m_ascent,
                                      fm.width(printable.at(c)),
                                      m_lineHeight, color);
@@ -921,8 +976,10 @@ void BinEditorWidget::paintEvent(QPaintEvent *e)
 
                 if (!isFullySelected && pos >= selStart && pos <= selEnd) {
                     selectionRect |= QRect(item_x - m_charWidth/2, y-m_ascent, m_columnWidth, m_lineHeight);
-                    int printable_item_x = -xoffset + m_margin + m_labelWidth + m_bytesPerLine * m_columnWidth + m_charWidth
-                                           + fm.width(printable.left(c));
+                    int printable_item_x = -xoffset + m_margin + m_labelWidth
+                                           + m_bytesPerLine * m_columnWidth + m_charWidth
+                                           + m_pixelsAfterLastHex + fm.width(printable.left(c));
+                    printable_item_x += m_enableGroups ? getFullGroupSpace() : 0;
                     printableSelectionRect |= QRect(printable_item_x, y-m_ascent,
                                                     fm.width(printable.at(c)),
                                                     m_lineHeight);
@@ -934,7 +991,12 @@ void BinEditorWidget::paintEvent(QPaintEvent *e)
 
         if (isFullySelected) {
             painter.save();
-            painter.fillRect(x - m_charWidth/2, y-m_ascent, m_bytesPerLine*m_columnWidth, m_lineHeight, palette().highlight());
+            const int groupOffset = m_enableGroups ? getFullGroupSpace() : 0;
+            painter.fillRect(x - m_charWidth / 2,
+                             y - m_ascent,
+                             m_bytesPerLine * m_columnWidth + groupOffset,
+                             m_lineHeight,
+                             palette().highlight());
             painter.setPen(palette().highlightedText().color());
             drawItems(&painter, x, y, itemString);
             painter.restore();
@@ -954,7 +1016,8 @@ void BinEditorWidget::paintEvent(QPaintEvent *e)
 
         if (cursor >= 0) {
             int w = fm.boundingRect(itemString.mid(cursor*3, 2)).width();
-            QRect cursorRect(x + cursor * m_columnWidth, y - m_ascent, w + 1, m_lineHeight);
+            int groupOff = m_enableGroups ? (cursor / m_groupElements) * m_groupSpace : 0;
+            QRect cursorRect(x + cursor * m_columnWidth + groupOff, y - m_ascent, w + 1, m_lineHeight);
             paintCursorBorder(&painter, cursorRect);
             if (m_hexCursor && m_cursorVisible) {
                 if (m_lowNibble)
@@ -968,7 +1031,9 @@ void BinEditorWidget::paintEvent(QPaintEvent *e)
             }
         }
 
-        int text_x = -xoffset + m_margin + m_labelWidth + m_bytesPerLine * m_columnWidth + m_charWidth;
+        int text_x = -xoffset + m_margin + m_labelWidth + m_bytesPerLine * m_columnWidth
+                     + m_charWidth + m_pixelsAfterLastHex;
+        text_x += m_enableGroups ? getFullGroupSpace() : 0;
 
         if (isFullySelected) {
                 painter.save();
@@ -1016,7 +1081,7 @@ qint64 BinEditorWidget::cursorPosition() const
 
 void BinEditorWidget::setCursorPosition(qint64 pos, MoveMode moveMode)
 {
-    pos = qMin(m_size - 1, qMax(qint64(0), pos));
+    pos = qMin(m_size - 1, qMax(qint64(m_skipBytes), pos));
     int oldCursorPosition = m_cursorPosition;
 
     m_lowNibble = false;
@@ -1046,8 +1111,25 @@ void BinEditorWidget::ensureCursorVisible()
 
 void BinEditorWidget::mousePressEvent(QMouseEvent *e)
 {
+    const int xoffset = horizontalScrollBar()->value();
+    const int fullGroupSpace = m_enableGroups ? getFullGroupSpace() : 0;
+    const int x2 = -xoffset + m_margin + m_labelWidth + m_bytesPerLine * m_columnWidth
+                   + m_charWidth / 2 + m_pixelsAfterLastHex + fullGroupSpace;
+
     if (e->button() != Qt::LeftButton)
         return;
+
+    if (abs(e->pos().x() - x2) < 4) { // start drag
+        if(!m_dragLineEnabled)
+            return;
+        if(m_dragReturnTimer.isActive())
+            m_dragReturnTimer.stop();
+        saveTopLineAddress();
+        m_draggingLine = true;
+        m_draggingStartOffset = e->pos().x() - x2;
+        return;
+    }
+
     MoveMode moveMode = e->modifiers() & Qt::ShiftModifier ? KeepAnchor : MoveAnchor;
     setCursorPosition(posAt(e->pos()).value(), moveMode);
     setBlinkingCursorEnabled(true);
@@ -1059,8 +1141,68 @@ void BinEditorWidget::mousePressEvent(QMouseEvent *e)
 
 void BinEditorWidget::mouseMoveEvent(QMouseEvent *e)
 {
-    if (!(e->buttons() & Qt::LeftButton))
+    const int xoffset = horizontalScrollBar()->value();
+    const int fullGroupSpace = m_enableGroups ? getFullGroupSpace() : 0;
+    const int x2 = -xoffset + m_margin + m_labelWidth + m_bytesPerLine * m_columnWidth
+                   + m_charWidth / 2 + m_pixelsAfterLastHex + fullGroupSpace;
+
+    if (!(e->buttons() & Qt::LeftButton)) {
+        bool showDragCursor = m_dragLineEnabled && abs(e->pos().x() - x2) < 4;
+        setCursor(showDragCursor ? Qt::SizeHorCursor : Qt::ArrowCursor);
         return;
+    }
+
+    setCursor(m_draggingLine ? Qt::SizeHorCursor : Qt::ArrowCursor);
+
+    if (m_draggingLine) {
+        int delta = e->pos().x() - (x2 + m_draggingStartOffset);
+        m_pixelsAfterLastHex += delta;
+
+        const int groupElements = m_enableGroups && m_groupsAligned ? m_groupElements : 1;
+
+        if (m_bytesPerLine <= groupElements && m_pixelsAfterLastHex < 0)
+            m_pixelsAfterLastHex = 0;
+
+        int groupWidth = m_columnWidth * groupElements;
+        if (m_enableGroups && m_groupsAligned)
+            groupWidth += m_groupSpace;
+
+        bool isLastElement = m_bytesPerLine % m_groupElements == 0;
+        bool isFirstElement = m_bytesPerLine % m_groupElements == 1;
+
+        int tmpPix = m_pixelsAfterLastHex;
+        if (m_enableGroups && !m_groupsAligned && isLastElement) {
+            if (tmpPix > 0)
+                tmpPix = qMax(0, tmpPix - m_groupSpace);
+        }
+
+        int m1 = tmpPix / groupWidth;
+        int m2 = tmpPix % groupWidth;
+
+        if (m2 < 0) {
+            m1--;
+            m2 += groupWidth;
+
+            if (m_enableGroups && !m_groupsAligned && isFirstElement)
+                m2 += m_groupSpace;
+        }
+
+        if (m1 != 0) {
+            m_pixelsAfterLastHex = m2;
+            m_bytesPerLine += m1 * groupElements;
+            if (m_bytesPerLine < groupElements) {
+                m_bytesPerLine = groupElements;
+                m_pixelsAfterLastHex = 0;
+            }
+            m_bytesPerLine = std::max(1, m_bytesPerLine);
+            init();
+            emit columnResized();
+        }
+        restoreTopLineAddress();
+        viewport()->update();
+        return;
+    }
+
     setCursorPosition(posAt(e->pos()).value(), KeepAnchor);
     if (m_hexCursor == inTextArea(e->pos())) {
         m_hexCursor = !m_hexCursor;
@@ -1075,6 +1217,11 @@ void BinEditorWidget::mouseMoveEvent(QMouseEvent *e)
 
 void BinEditorWidget::mouseReleaseEvent(QMouseEvent *)
 {
+    if (m_draggingLine) {
+        stopAndReturnDragLine();
+        restoreTopLineAddress();
+    }
+
     if (m_autoScrollTimer.isActive()) {
         m_autoScrollTimer.stop();
         ensureCursorVisible();
@@ -1083,7 +1230,7 @@ void BinEditorWidget::mouseReleaseEvent(QMouseEvent *)
 
 void BinEditorWidget::selectAll()
 {
-    setCursorPosition(0);
+    setCursorPosition(m_skipBytes);
     setCursorPosition(m_size-1, KeepAnchor);
 }
 
@@ -1095,6 +1242,7 @@ void BinEditorWidget::clear()
     m_modifiedData.clear();
     m_requests.clear();
     m_size = 0;
+    m_skipBytes = 0;
     m_addressBytes = 4;
 
     m_unmodifiedState = 0;
@@ -1231,7 +1379,7 @@ QString BinEditorWidget::toolTip(const QHelpEvent *helpEvent) const
     QString msg;
     QTextStream str(&msg);
     str << "<html><head/><body><p align=\"center\"><b>"
-        << tr("Memory at 0x%1").arg(address, 0, 16) << "</b></p>";
+        << tr("Memory at 0x%1").arg(address + m_displayStartAddr, 0, 16) << "</b></p>";
 
     foreach (const Markup &m, m_markup) {
         if (m.covers(address) && !m.toolTip.isEmpty()) {
@@ -1389,7 +1537,7 @@ void BinEditorWidget::keyPressEvent(QKeyEvent *e)
         break;
     case Qt::Key_PageUp:
     case Qt::Key_PageDown: {
-        int line = qMax(qint64(0), m_cursorPosition / m_bytesPerLine - verticalScrollBar()->value());
+        int line = qMax(qint64(m_skipBytes), m_cursorPosition / m_bytesPerLine - verticalScrollBar()->value());
         verticalScrollBar()->triggerAction(e->key() == Qt::Key_PageUp ?
                                            QScrollBar::SliderPageStepSub : QScrollBar::SliderPageStepAdd);
         if (!ctrlPressed)
@@ -1399,7 +1547,7 @@ void BinEditorWidget::keyPressEvent(QKeyEvent *e)
     case Qt::Key_Home: {
         int pos;
         if (ctrlPressed)
-            pos = 0;
+            pos = m_skipBytes;
         else
             pos = m_cursorPosition/m_bytesPerLine * m_bytesPerLine;
         setCursorPosition(pos, moveMode);
@@ -1409,7 +1557,7 @@ void BinEditorWidget::keyPressEvent(QKeyEvent *e)
         if (ctrlPressed)
             pos = m_size;
         else
-            pos = m_cursorPosition/m_bytesPerLine * m_bytesPerLine + 15;
+            pos = m_cursorPosition / m_bytesPerLine * m_bytesPerLine + (m_bytesPerLine - 1);
         setCursorPosition(pos, moveMode);
     } break;
     default:
@@ -1596,6 +1744,7 @@ void BinEditorWidget::contextMenuEvent(QContextMenuEvent *event)
     auto jumpToLeAddressHereAction = new QAction(contextMenu);
     auto jumpToLeAddressNewWindowAction = new QAction(contextMenu);
     auto addWatchpointAction = new QAction(tr("Set Data Breakpoint on Selection"), contextMenu);
+
     contextMenu->addAction(copyAsciiAction);
     contextMenu->addAction(copyHexAction);
     contextMenu->addAction(addWatchpointAction);
@@ -1623,6 +1772,31 @@ void BinEditorWidget::contextMenuEvent(QContextMenuEvent *event)
         contextMenu->addAction(jumpToBeAddressNewWindowAction);
     }
 
+    auto groupByMenu = contextMenu->addMenu(tr("Group Bytes by..."));
+
+    auto groupDisableAction = new QAction(tr("Disable groups"), contextMenu);
+    auto groupBy2Action = new QAction(tr("2 Bytes"), contextMenu);
+    auto groupBy4Action = new QAction(tr("4 Bytes"), contextMenu);
+    auto groupBy8Action = new QAction(tr("8 Bytes"), contextMenu);
+
+    groupByMenu->addAction(groupDisableAction);
+    groupByMenu->addAction(groupBy2Action);
+    groupByMenu->addAction(groupBy4Action);
+    groupByMenu->addAction(groupBy8Action);
+
+    auto groupsAligned = new QAction(tr("Resize groups by blocks"), contextMenu);
+    groupsAligned->setCheckable(true);
+    groupsAligned->setChecked(m_groupsAligned);
+    contextMenu->addAction(groupsAligned);
+
+    QAction* bytesAligned = nullptr;
+    if(m_enableSkipBytesInContext) {
+        bytesAligned = new QAction(tr("Align bytes to binary"), contextMenu);
+        bytesAligned->setCheckable(true);
+        bytesAligned->setChecked(m_skipBytes > 0);
+        contextMenu->addAction(bytesAligned);
+    }
+
     QAction *action = contextMenu->exec(event->globalPos());
     if (!contextMenu)
         return;
@@ -1641,6 +1815,18 @@ void BinEditorWidget::contextMenuEvent(QContextMenuEvent *event)
         d->requestNewWindow(leAddress);
     else if (action == addWatchpointAction)
         d->requestWatchPoint(m_baseAddr + selStart, byteCount);
+    else if (action == groupDisableAction)
+        setGroupsElements(0);
+    else if (action == groupBy2Action)
+        setGroupsElements(2);
+    else if (action == groupBy4Action)
+        setGroupsElements(4);
+    else if (action == groupBy8Action)
+        setGroupsElements(8);
+    else if (action == groupsAligned)
+        setGroupsAligned(!m_groupsAligned);
+    else if (bytesAligned && action == bytesAligned)
+        emit skipBytesRequestChanged();
     delete contextMenu;
 }
 
@@ -1721,6 +1907,135 @@ void BinEditorWidget::setMarkup(const QList<Markup> &markup)
 {
     m_markup = markup;
     viewport()->update();
+}
+
+int BinEditorWidget::getGroupsElements() const
+{
+    return m_groupElements;
+}
+
+void BinEditorWidget::setGroupsElements(int numElements)
+{
+    prepareDragLineAnimation();
+
+    if (numElements < 2) {
+        m_enableGroups = false;
+        m_groupElements = 1;
+    } else {
+        m_groupElements = numElements;
+        m_enableGroups = true;
+    }
+
+    performDragLineAnimation();
+    init();
+    restoreTopLineAddress();
+    viewport()->update();
+}
+
+bool BinEditorWidget::getGroupsAligned() const
+{
+    return m_groupsAligned;
+}
+
+int BinEditorWidget::getFullGroupSpace() const
+{
+    return ((m_bytesPerLine + m_groupElements - 1) / m_groupElements - 1) * m_groupSpace;
+}
+
+void BinEditorWidget::prepareDragLineAnimation()
+{
+    const int xoffset = horizontalScrollBar()->value();
+    const int x2base = -xoffset + m_margin + m_labelWidth + m_charWidth / 2 + m_pixelsAfterLastHex;
+
+    m_groupElements = std::max(m_groupElements, 1);
+    m_dragLinePos = x2base + (m_enableGroups ? getFullGroupSpace() : 0) + m_bytesPerLine * m_columnWidth;
+}
+
+void BinEditorWidget::performDragLineAnimation()
+{
+    const int xoffset = horizontalScrollBar()->value();
+    const int x2base = -xoffset + m_margin + m_labelWidth + m_charWidth / 2 + m_pixelsAfterLastHex;
+
+    if (m_groupsAligned) {
+        m_bytesPerLine = (m_bytesPerLine / m_groupElements) * m_groupElements;
+        m_bytesPerLine = qMax(m_groupElements, m_bytesPerLine);
+    }
+
+    const int x2new = x2base + (m_enableGroups ? getFullGroupSpace() : 0) + m_bytesPerLine * m_columnWidth;
+
+    m_pixelsAfterLastHex -= x2new - m_dragLinePos;
+    stopAndReturnDragLine();
+}
+
+void BinEditorWidget::stopAndReturnDragLine()
+{
+    m_draggingLine = false;
+    setCursor(Qt::ArrowCursor);
+    m_dragReturnTimer.start(10, this);
+}
+
+void BinEditorWidget::setGroupsAligned(bool aligned)
+{
+    prepareDragLineAnimation();
+    m_groupsAligned = aligned;
+
+    performDragLineAnimation();
+    if (m_enableGroups) {
+        init();
+        restoreTopLineAddress();
+        viewport()->update();
+    }
+}
+
+void BinEditorWidget::saveTopLineAddress()
+{
+    const int topLine = verticalScrollBar()->value();
+    m_topLineAddr = topLine * m_bytesPerLine;
+}
+
+void BinEditorWidget::restoreTopLineAddress()
+{
+    if(!m_dragFixToFirstLine)
+        return;
+    verticalScrollBar()->setValue(m_topLineAddr / m_bytesPerLine);
+}
+
+void BinEditorWidget::enableColumnResize(bool enable) {
+    m_dragLineEnabled = enable;
+}
+
+bool BinEditorWidget::isColumnResizeEnabled() const {
+    return m_dragLineEnabled;
+}
+
+void BinEditorWidget::syncToFirstAddrOnResize(bool enable) {
+    m_dragFixToFirstLine = enable;
+}
+
+bool BinEditorWidget::syncToFirstAddrOnResize() const {
+    return m_dragFixToFirstLine;
+}
+
+void BinEditorWidget::setBytesToSkip(quint64 startByte) {
+    startByte = qMin(m_size - 1, qint64(startByte));
+    m_skipBytes = startByte;
+    m_cursorPosition = qMax(qint64(startByte), m_cursorPosition);
+}
+
+quint64 BinEditorWidget::getBytesToSkip() const {
+    return m_skipBytes;
+}
+
+void BinEditorWidget::setDisplayedStartAddr(quint64 startAddr) {
+    m_displayStartAddr = startAddr;
+}
+
+quint64 BinEditorWidget::getDisplayedStartAddr() const {
+    return m_displayStartAddr;
+}
+
+void BinEditorWidget::enableSkipBytesInContextMenu(bool enable) {
+    m_enableSkipBytesInContext = enable;
 }
 
 } // namespace Internal
