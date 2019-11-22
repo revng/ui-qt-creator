@@ -40,6 +40,10 @@ CONFIG(debug, debug|release) {
     msvc: BOTAN_CXX_FLAGS += /O2
     else: BOTAN_CXX_FLAGS += -O3
 }
+
+debug: BOTAN_CXX_FLAGS += $$QMAKE_CXXFLAGS_DEBUG
+release: BOTAN_CXX_FLAGS += $$QMAKE_CXXFLAGS_RELEASE
+
 !isEmpty(BOTAN_CXX_FLAGS): OTHER_FLAGS += --cxxflags=$$shell_quote($$BOTAN_CXX_FLAGS)
 CONFIGURE_FILE_PATH_FOR_SHELL = $$shell_quote($$shell_path($$BOTAN_SOURCE_DIR/configure.py))
 
