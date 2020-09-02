@@ -7,8 +7,8 @@ posix_mlock
 
 dev_random
 proc_fs
-clock_gettime
-getauxval
+#clock_gettime
+#getauxval
 
 # not enabled by default as only available in newer kernel/glibc
 #getrandom
