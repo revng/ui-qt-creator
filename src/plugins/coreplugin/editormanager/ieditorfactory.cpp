@@ -86,13 +86,15 @@ const EditorFactoryList IEditorFactory::preferredEditorFactories(const QString &
     if (userPreferred)
         factories_moveToFront(userPreferred);
     // open text files > 48 MB in binary editor
+
     if (fileInfo.size() > EditorManager::maxTextFileSize()
-            && mimeType.inherits("text/plain")) {
+            && mimeType.inherits("text/plain") && !mimeType.matchesName("text/x-llir")) {
         const Utils::MimeType binary = Utils::mimeTypeForName("application/octet-stream");
         const EditorFactoryList binaryEditors = defaultEditorFactories(binary);
         if (!binaryEditors.isEmpty())
             factories_moveToFront(binaryEditors.first());
     }
+
     return factories;
 }
 
