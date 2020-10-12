@@ -521,6 +521,9 @@ bool EditorManagerPrivate::skipOpeningBigTextFile(const QString &filePath)
     if (!mimeType.inherits("text/plain"))
         return false;
 
+    if (mimeType.matchesName("text/x-ll"))
+        return false;
+
     const double fileSizeInMB = fileInfo.size() / 1000.0 / 1000.0;
     if (fileSizeInMB > d->m_bigFileSizeLimitInMB) {
         const QString title = EditorManager::tr("Continue Opening Huge Text File?");
