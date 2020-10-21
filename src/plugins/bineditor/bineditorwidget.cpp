@@ -201,7 +201,7 @@ void BinEditorWidget::init()
     m_margin = m_charWidth;
     m_columnWidth = 2 * m_charWidth + fm.width(QChar(QLatin1Char(' ')));
     m_groupSpace = m_columnWidth / 2;
-    m_numLines = m_size / m_bytesPerLine + 1;
+    m_numLines = (m_size + (m_size > 0 ? -1 : 0)) / m_bytesPerLine + 1;
     m_numVisibleLines = viewport()->height() / m_lineHeight;
     m_textWidth = m_bytesPerLine * m_charWidth + m_charWidth;
     int numberWidth = fm.width(QChar(QLatin1Char('9')));
