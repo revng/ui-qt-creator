@@ -39,7 +39,9 @@ class QThreadPool;
 QT_END_NAMESPACE
 
 namespace Core {
+#ifndef COLD_REVNG
 class IMode;
+#endif
 class Id;
 } // namespace Core
 

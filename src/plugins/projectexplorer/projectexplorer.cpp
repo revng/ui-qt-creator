@@ -281,6 +281,7 @@ static bool isTextFile(const QString &fileName)
                 TextEditor::Constants::C_TEXTEDITOR_MIMETYPE_TEXT);
 }
 
+#ifndef COLD_REVNG
 class ProjectsMode : public IMode
 {
 public:
@@ -295,6 +296,7 @@ public:
         setContextHelpId(QLatin1String("Managing Projects"));
     }
 };
+#endif
 
 class ProjectExplorerPluginPrivate : public QObject
 {
@@ -392,7 +394,9 @@ public:
     QAction *m_closeAllProjects;
     QAction *m_buildProjectOnlyAction;
     Utils::ParameterAction *m_buildAction;
+#ifndef COLD_REVNG
     Utils::ProxyAction *m_modeBarBuildAction;
+#endif
     QAction *m_buildActionContextMenu;
     QAction *m_buildDependenciesActionContextMenu;
     QAction *m_buildSessionAction;
@@ -498,7 +502,9 @@ public:
     CustomWizardMetaFactory<CustomProjectWizard> m_customProjectWizard{IWizardFactory::ProjectWizard};
     CustomWizardMetaFactory<CustomWizard> m_fileWizard{IWizardFactory::FileWizard};
 
+#ifndef COLD_REVNG
     ProjectsMode m_projectsMode;
+#endif
 
     CopyTaskHandler m_copyTaskHandler;
     ShowInEditorTaskHandler m_showInEditorTaskHandler;
@@ -649,8 +655,10 @@ bool ProjectExplorerPlugin::initialize(const QStringList &arguments, QString *er
 
     Context projecTreeContext(Constants::C_PROJECT_TREE);
 
+#ifndef COLD_REVNG
     dd->m_projectsMode.setWidget(dd->m_proWindow);
     dd->m_projectsMode.setEnabled(false);
+#endif
 
     ICore::addPreCloseListener([]() -> bool { return coreAboutToClose(); });
 
@@ -969,12 +977,14 @@ bool ProjectExplorerPlugin::initialize(const QStringList &arguments, QString *er
     cmd->setDefaultKeySequence(QKeySequence(tr("Ctrl+B")));
     mbuild->addAction(cmd, Constants::G_BUILD_BUILD);
 
+#ifndef COLD_REVNG
     // Add to mode bar
     dd->m_modeBarBuildAction = new Utils::ProxyAction(this);
     dd->m_modeBarBuildAction->initialize(cmd->action());
     dd->m_modeBarBuildAction->setAttribute(Utils::ProxyAction::UpdateText);
     dd->m_modeBarBuildAction->setAction(cmd->action());
     ModeManager::addAction(dd->m_modeBarBuildAction, Constants::P_ACTION_BUILDPROJECT);
+#endif
 
     // deploy action
     dd->m_deployAction = new Utils::ParameterAction(tr("Deploy Project"), tr("Deploy Project \"%1\""),
@@ -1014,7 +1024,9 @@ bool ProjectExplorerPlugin::initialize(const QStringList &arguments, QString *er
     cmd->setDefaultKeySequence(QKeySequence(tr("Ctrl+R")));
     mbuild->addAction(cmd, Constants::G_BUILD_RUN);
 
+#ifndef COLD_REVNG
     ModeManager::addAction(cmd->action(), Constants::P_ACTION_RUN);
+#endif
 
     // Run without deployment action
     dd->m_runWithoutDeployAction = new QAction(tr("Run Without Deployment"), this);
@@ -1206,7 +1218,9 @@ bool ProjectExplorerPlugin::initialize(const QStringList &arguments, QString *er
     dd->m_targetSelector = new MiniProjectTargetSelector(dd->m_projectSelectorAction, mainWindow);
     connect(dd->m_projectSelectorAction, &QAction::triggered,
             dd->m_targetSelector, &QWidget::show);
+#ifndef COLD_REVNG
     ModeManager::addProjectSelector(dd->m_projectSelectorAction);
+#endif
 
     dd->m_projectSelectorActionMenu = new QAction(this);
     dd->m_projectSelectorActionMenu->setEnabled(false);
@@ -1648,7 +1662,9 @@ void ProjectExplorerPluginPrivate::closeAllProjects()
     SessionManager::closeAllProjects();
     updateActions();
 
+#ifndef COLD_REVNG
     ModeManager::activateMode(Core::Constants::MODE_WELCOME);
+#endif
 }
 
 void ProjectExplorerPlugin::extensionsInitialized()
@@ -1709,8 +1725,10 @@ void ProjectExplorerPluginPrivate::updateRunWithoutDeployMenu()
 
 ExtensionSystem::IPlugin::ShutdownFlag ProjectExplorerPlugin::aboutToShutdown()
 {
+#ifndef COLD_REVNG
     disconnect(ModeManager::instance(), &ModeManager::currentModeChanged,
                dd, &ProjectExplorerPluginPrivate::currentModeChanged);
+#endif
     ProjectTree::aboutToShutDown();
     ToolChainManager::aboutToShutdown();
     SessionManager::closeAllProjects();
@@ -1749,8 +1767,10 @@ void ProjectExplorerPluginPrivate::showSessionManager()
 
     updateActions();
 
+#ifndef COLD_REVNG
     if (ModeManager::currentModeId() == Core::Constants::MODE_WELCOME)
         updateWelcomePage();
+#endif
 }
 
 void ProjectExplorerPluginPrivate::setStartupProject(Project *project)
@@ -1919,6 +1939,7 @@ ProjectExplorerPlugin::OpenProjectResult ProjectExplorerPlugin::openProjects(con
     }
     dd->updateActions();
 
+#ifndef COLD_REVNG
     bool switchToProjectsMode = Utils::anyOf(openedPro, &Project::needsConfiguration);
 
     if (!openedPro.isEmpty()) {
@@ -1928,6 +1949,7 @@ ProjectExplorerPlugin::OpenProjectResult ProjectExplorerPlugin::openProjects(con
             ModeManager::activateMode(Core::Constants::MODE_EDIT);
         ModeManager::setFocusToCurrentMode();
     }
+#endif
 
     return OpenProjectResult(openedPro, alreadyOpen, errorString);
 }
@@ -1939,10 +1961,12 @@ void ProjectExplorerPluginPrivate::updateWelcomePage()
 
 void ProjectExplorerPluginPrivate::currentModeChanged(Id mode, Id oldMode)
 {
+#ifndef COLD_REVNG
     if (oldMode == Constants::MODE_SESSION)
         ICore::saveSettings();
     if (mode == Core::Constants::MODE_WELCOME)
         updateWelcomePage();
+#endif
 }
 
 void ProjectExplorerPluginPrivate::determineSessionToRestoreAtStartup()
@@ -1968,8 +1992,10 @@ void ProjectExplorerPluginPrivate::determineSessionToRestoreAtStartup()
         && m_projectExplorerSettings.autorestoreLastSession)
         m_sessionToRestoreAtStartup = SessionManager::lastSession();
 
+#ifndef COLD_REVNG
     if (!m_sessionToRestoreAtStartup.isNull())
         ModeManager::activateMode(Core::Constants::MODE_EDIT);
+#endif
 }
 
 // Return a list of glob patterns for project files ("*.pro", etc), use first, main pattern only.
@@ -2045,9 +2071,11 @@ void ProjectExplorerPluginPrivate::restoreSession()
     if (!dd->m_sessionToRestoreAtStartup.isEmpty())
         SessionManager::loadSession(dd->m_sessionToRestoreAtStartup);
 
+#ifndef COLD_REVNG
     // update welcome page
     connect(ModeManager::instance(), &ModeManager::currentModeChanged,
             dd, &ProjectExplorerPluginPrivate::currentModeChanged);
+#endif
     connect(&dd->m_welcomePage, &ProjectWelcomePage::requestProject,
             m_instance, &ProjectExplorerPlugin::openProjectWelcomePage);
     dd->m_arguments = arguments;
@@ -2269,12 +2297,14 @@ void ProjectExplorerPluginPrivate::updateActions()
 
     // mode bar build action
     QAction * const buildAction = ActionManager::command(Constants::BUILD)->action();
+#ifndef COLD_REVNG
     m_modeBarBuildAction->setAction(isBuilding
                                     ? ActionManager::command(Constants::CANCELBUILD)->action()
                                     : buildAction);
     m_modeBarBuildAction->setIcon(isBuilding
                                   ? Icons::CANCELBUILD_FLAT.icon()
                                   : buildAction->icon());
+#endif
 
     // Normal actions
     m_buildAction->setParameter(projectName);
@@ -2672,7 +2702,9 @@ QList<QPair<Runnable, Utils::ProcessHandle>> ProjectExplorerPlugin::runningRunCo
 
 void ProjectExplorerPluginPrivate::projectAdded(Project *pro)
 {
+#ifndef COLD_REVNG
     m_projectsMode.setEnabled(true);
+#endif
 
     // more specific action en and disabling ?
     pro->subscribeSignal(&BuildConfiguration::enabledChanged, this, [this]() {
@@ -2692,7 +2724,9 @@ void ProjectExplorerPluginPrivate::projectAdded(Project *pro)
 void ProjectExplorerPluginPrivate::projectRemoved(Project *pro)
 {
     Q_UNUSED(pro);
+#ifndef COLD_REVNG
     m_projectsMode.setEnabled(SessionManager::hasProjects());
+#endif
 }
 
 void ProjectExplorerPluginPrivate::projectDisplayNameChanged(Project *pro)

@@ -132,12 +132,16 @@ private:
 
     void registerDefaultContainers();
     void registerDefaultActions();
+#ifndef COLD_REVNG
     void registerModeSelectorStyleActions();
+#endif
 
     void readSettings();
     void saveWindowSettings();
 
+#ifndef COLD_REVNG
     void updateModeSelectorStyleMenu();
+#endif
 
     ICore *m_coreImpl = nullptr;
     QStringList m_aboutInformation;

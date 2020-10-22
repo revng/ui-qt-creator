@@ -54,7 +54,9 @@
 #include <coreplugin/imode.h>
 #include <coreplugin/infobar.h>
 #include <coreplugin/iversioncontrol.h>
+#ifndef COLD_REVNG
 #include <coreplugin/modemanager.h>
+#endif
 #include <coreplugin/outputpane.h>
 #ifndef COLD_REVNG
 #include <coreplugin/outputpanemanager.h>
@@ -883,6 +885,7 @@ void EditorManagerPrivate::doEscapeKeyFocusMoveMagic()
         return;
     }
 
+#ifndef COLD_REVNG
     if (!editorViewActive && !editorViewVisible) {
         // assumption is that editorView is in main window then
         ModeManager::activateMode(Id(Constants::MODE_EDIT));
@@ -898,6 +901,7 @@ void EditorManagerPrivate::doEscapeKeyFocusMoveMagic()
         // next call works only because editor views in main window are shared between modes
         setFocusToEditorViewAndUnmaximizePanes(editorView);
     }
+#endif
 }
 
 OpenEditorsWindow *EditorManagerPrivate::windowPopup()
@@ -1298,6 +1302,7 @@ IEditor *EditorManagerPrivate::activateEditor(EditorView *view, IEditor *editor,
         setCurrentEditor(editor, (flags & EditorManager::IgnoreNavigationHistory));
         if (!(flags & EditorManager::DoNotMakeVisible)) {
             // switch to design mode?
+#ifndef COLD_REVNG
             if (!(flags & EditorManager::DoNotSwitchToDesignMode) && editor->isDesignModePreferred()) {
                 ModeManager::activateMode(Constants::MODE_DESIGN);
                 ModeManager::setFocusToCurrentMode();
@@ -1309,9 +1314,12 @@ IEditor *EditorManagerPrivate::activateEditor(EditorView *view, IEditor *editor,
                         if (!editor->widget()->isVisible())
                             ModeManager::activateMode(Constants::MODE_EDIT);
                 }
+#endif
                 editor->widget()->setFocus();
                 ICore::raiseWindow(editor->widget());
+#ifndef COLD_REVNG
             }
+#endif
         }
     } else if (!(flags & EditorManager::DoNotMakeVisible)) {
         view->setCurrentEditor(editor);

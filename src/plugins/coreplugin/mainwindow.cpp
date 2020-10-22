@@ -701,7 +701,9 @@ void MainWindow::registerDefaultActions()
     mwindow->addAction(cmd, Constants::G_WINDOW_VIEWS);
     m_toggleRightSideBarButton->setEnabled(false);
 
+#ifndef COLD_REVNG
     registerModeSelectorStyleActions();
+#endif
 
     // Window->Views
     ActionContainer *mviews = ActionManager::createMenu(Constants::M_WINDOW_VIEWS);
@@ -747,6 +749,7 @@ void MainWindow::registerDefaultActions()
     }
 }
 
+#ifndef COLD_REVNG
 void MainWindow::registerModeSelectorStyleActions()
 {
     ActionContainer *mwindow = ActionManager::actionContainer(Constants::M_WINDOW);
@@ -782,6 +785,7 @@ void MainWindow::registerModeSelectorStyleActions()
 
     styleMenu->addActions(stylesGroup->actions());
 }
+#endif
 
 void MainWindow::openFile()
 {
@@ -977,6 +981,7 @@ void MainWindow::readSettings()
                                   QColor(StyleHelper::DEFAULT_BASE_COLOR)).value<QColor>());
     }
 
+#ifndef COLD_REVNG
     {
         ModeManager::Style modeStyle =
                 ModeManager::Style(settings->value(modeSelectorLayoutKey, int(ModeManager::Style::IconsAndText)).toInt());
@@ -991,6 +996,7 @@ void MainWindow::readSettings()
         ModeManager::setModeStyle(modeStyle);
         updateModeSelectorStyleMenu();
     }
+#endif
 
     settings->endGroup();
 
@@ -1030,11 +1036,14 @@ void MainWindow::saveWindowSettings()
         setWindowState(windowState() & ~Qt::WindowFullScreen);
     settings->setValue(QLatin1String(windowGeometryKey), saveGeometry());
     settings->setValue(QLatin1String(windowStateKey), saveState());
+#ifndef COLD_REVNG
     settings->setValue(modeSelectorLayoutKey, int(ModeManager::modeStyle()));
+#endif
 
     settings->endGroup();
 }
 
+#ifndef COLD_REVNG
 void MainWindow::updateModeSelectorStyleMenu()
 {
     switch (ModeManager::modeStyle()) {
@@ -1049,6 +1058,7 @@ void MainWindow::updateModeSelectorStyleMenu()
         break;
     }
 }
+#endif
 
 void MainWindow::updateAdditionalContexts(const Context &remove, const Context &add,
                                           ICore::ContextPriority priority)
