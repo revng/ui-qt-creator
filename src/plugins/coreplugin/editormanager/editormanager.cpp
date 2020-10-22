@@ -56,7 +56,9 @@
 #include <coreplugin/iversioncontrol.h>
 #include <coreplugin/modemanager.h>
 #include <coreplugin/outputpane.h>
+#ifndef COLD_REVNG
 #include <coreplugin/outputpanemanager.h>
+#endif
 #include <coreplugin/rightpane.h>
 #include <coreplugin/settingsdatabase.h>
 #include <coreplugin/vcsmanager.h>
@@ -858,7 +860,9 @@ void EditorManagerPrivate::doEscapeKeyFocusMoveMagic()
     } else if (!( editorViewVisible && !editorViewActive && editorView->window() == activeWindow )) {
         QWidget *outputPane = OutputPanePlaceHolder::getCurrent();
         if (outputPane && outputPane->isVisible() && outputPane->window() == activeWindow) {
+#ifndef COLD_REVNG
             OutputPaneManager::instance()->slotHide();
+#endif
             stuffHidden = true;
         }
         QWidget *rightPane = RightPanePlaceHolder::current();

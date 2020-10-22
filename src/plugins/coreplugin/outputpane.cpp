@@ -100,8 +100,10 @@ void OutputPanePlaceHolder::currentModeChanged(Id mode)
         d->m_current = this;
         Internal::OutputPaneManager *om = Internal::OutputPaneManager::instance();
         layout()->addWidget(om);
+#ifndef COLD_REVNG
         om->show();
         om->updateStatusButtons(isVisible());
+#endif
         Internal::OutputPaneManager::updateMaximizeButton(d->m_isMaximized);
     }
 }
