@@ -8,9 +8,9 @@ QTCREATOR_DISPLAY_VERSION = 4.8.2
 QTCREATOR_COPYRIGHT_YEAR = 2019
 BINARY_ARTIFACTS_BRANCH = 4.8
 
-isEmpty(IDE_DISPLAY_NAME):           IDE_DISPLAY_NAME = Qt Creator
+isEmpty(IDE_DISPLAY_NAME):           IDE_DISPLAY_NAME = cold-revng
 isEmpty(IDE_ID):                     IDE_ID = qtcreator
-isEmpty(IDE_CASED_ID):               IDE_CASED_ID = QtCreator
+isEmpty(IDE_CASED_ID):               IDE_CASED_ID = ColdRevng
 
 isEmpty(PRODUCT_BUNDLE_IDENTIFIER): PRODUCT_BUNDLE_IDENTIFIER = org.qt-project.$$IDE_ID
 
