@@ -525,7 +525,7 @@ bool EditorManagerPrivate::skipOpeningBigTextFile(const QString &filePath)
     if (!mimeType.inherits("text/plain"))
         return false;
 
-    if (mimeType.matchesName("text/x-ll"))
+    if (mimeType.matchesName("text/x-llir"))
         return false;
 
     const double fileSizeInMB = fileInfo.size() / 1000.0 / 1000.0;
