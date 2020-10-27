@@ -54,9 +54,13 @@
 #include <coreplugin/imode.h>
 #include <coreplugin/infobar.h>
 #include <coreplugin/iversioncontrol.h>
+#ifndef COLD_REVNG
 #include <coreplugin/modemanager.h>
+#endif
 #include <coreplugin/outputpane.h>
+#ifndef COLD_REVNG
 #include <coreplugin/outputpanemanager.h>
+#endif
 #include <coreplugin/rightpane.h>
 #include <coreplugin/settingsdatabase.h>
 #include <coreplugin/vcsmanager.h>
@@ -521,7 +525,7 @@ bool EditorManagerPrivate::skipOpeningBigTextFile(const QString &filePath)
     if (!mimeType.inherits("text/plain"))
         return false;
 
-    if (mimeType.matchesName("text/x-ll"))
+    if (mimeType.matchesName("text/x-llir"))
         return false;
 
     const double fileSizeInMB = fileInfo.size() / 1000.0 / 1000.0;
@@ -858,7 +862,9 @@ void EditorManagerPrivate::doEscapeKeyFocusMoveMagic()
     } else if (!( editorViewVisible && !editorViewActive && editorView->window() == activeWindow )) {
         QWidget *outputPane = OutputPanePlaceHolder::getCurrent();
         if (outputPane && outputPane->isVisible() && outputPane->window() == activeWindow) {
+#ifndef COLD_REVNG
             OutputPaneManager::instance()->slotHide();
+#endif
             stuffHidden = true;
         }
         QWidget *rightPane = RightPanePlaceHolder::current();
@@ -879,6 +885,7 @@ void EditorManagerPrivate::doEscapeKeyFocusMoveMagic()
         return;
     }
 
+#ifndef COLD_REVNG
     if (!editorViewActive && !editorViewVisible) {
         // assumption is that editorView is in main window then
         ModeManager::activateMode(Id(Constants::MODE_EDIT));
@@ -894,6 +901,7 @@ void EditorManagerPrivate::doEscapeKeyFocusMoveMagic()
         // next call works only because editor views in main window are shared between modes
         setFocusToEditorViewAndUnmaximizePanes(editorView);
     }
+#endif
 }
 
 OpenEditorsWindow *EditorManagerPrivate::windowPopup()
@@ -1294,6 +1302,7 @@ IEditor *EditorManagerPrivate::activateEditor(EditorView *view, IEditor *editor,
         setCurrentEditor(editor, (flags & EditorManager::IgnoreNavigationHistory));
         if (!(flags & EditorManager::DoNotMakeVisible)) {
             // switch to design mode?
+#ifndef COLD_REVNG
             if (!(flags & EditorManager::DoNotSwitchToDesignMode) && editor->isDesignModePreferred()) {
                 ModeManager::activateMode(Constants::MODE_DESIGN);
                 ModeManager::setFocusToCurrentMode();
@@ -1305,9 +1314,12 @@ IEditor *EditorManagerPrivate::activateEditor(EditorView *view, IEditor *editor,
                         if (!editor->widget()->isVisible())
                             ModeManager::activateMode(Constants::MODE_EDIT);
                 }
+#endif
                 editor->widget()->setFocus();
                 ICore::raiseWindow(editor->widget());
+#ifndef COLD_REVNG
             }
+#endif
         }
     } else if (!(flags & EditorManager::DoNotMakeVisible)) {
         view->setCurrentEditor(editor);

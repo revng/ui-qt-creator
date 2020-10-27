@@ -68,6 +68,7 @@ public:
 Q_DECLARE_METATYPE(ReferenceData)
 Q_DECLARE_METATYPE(QList<ReferenceData>)
 
+#ifndef COLD_REVNG
 void Core::Internal::CorePlugin::test_basefilefilter()
 {
     QFETCH(QStringList, testFiles);
@@ -180,3 +181,4 @@ void Core::Internal::CorePlugin::test_basefilefilter_data()
                      << ResultData("mid_qcore_mac_p.h", priorityTestFilesShort.at(1))))
            );
 }
+#endif

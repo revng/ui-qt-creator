@@ -28,7 +28,9 @@
 #include "imode.h"
 #include "mainwindow.h"
 #include "minisplitter.h"
+#ifndef COLD_REVNG
 #include "modemanager.h"
+#endif
 
 #include <utils/qtcassert.h>
 
@@ -176,12 +178,14 @@ StatusBarContext::StatusBarContext(QObject *parent)
 
 Context StatusBarContext::context() const
 {
+#ifndef COLD_REVNG
     IMode *currentMode = ModeManager::currentMode();
     QWidget *modeWidget = currentMode ? currentMode->widget() : nullptr;
     if (modeWidget) {
         if (IContext *context = ICore::contextObject(modeWidget))
             return context->context();
     }
+#endif
     return Context();
 }
 

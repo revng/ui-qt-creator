@@ -430,17 +430,23 @@ void NavigationWidget::restoreSettings(QSettings *settings)
     }
 
     const bool isLeftSide = d->m_side == Side::Left;
+#ifndef COLD_REVNG
     QLatin1String defaultFirstView = isLeftSide ? QLatin1String("Projects") : QLatin1String("Outline");
+#else
+    QLatin1String defaultFirstView = isLeftSide ? QLatin1String("Undo Tree") : QLatin1String("Outline");
+#endif
     QStringList viewIds = settings->value(settingsKey("Views"), QStringList(defaultFirstView)).toStringList();
 
     bool restoreSplitterState = true;
     int version = settings->value(settingsKey("Version"), 1).toInt();
     if (version == 1) {
+#ifndef COLD_REVNG
         QLatin1String defaultSecondView = isLeftSide ? QLatin1String("Open Documents") : QLatin1String("Bookmarks");
         if (!viewIds.contains(defaultSecondView)) {
             viewIds += defaultSecondView;
             restoreSplitterState = false;
         }
+#endif
         settings->setValue(settingsKey("Version"), 2);
     }
 

@@ -40,9 +40,12 @@
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/find/findplugin.h>
 #include <coreplugin/find/searchresultwindow.h>
-#include <coreplugin/locator/locator.h>
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/fileutils.h>
+
+#ifndef COLD_REVNG
+#include <coreplugin/locator/locator.h>
+#endif
 
 #include <app/app_version.h>
 #include <extensionsystem/pluginerroroverview.h>
@@ -85,7 +88,9 @@ CorePlugin::~CorePlugin()
     IWizardFactory::destroyFeatureProvider();
     Find::destroy();
 
+#ifndef COLD_REVNG
     delete m_locator;
+#endif
     delete m_editMode;
 
     DesignMode::destroyModeIfRequired();
@@ -151,7 +156,9 @@ bool CorePlugin::initialize(const QStringList &arguments, QString *errorMessage)
     m_mainWindow = new MainWindow;
     if (args.overrideColor.isValid())
         m_mainWindow->setOverrideColor(args.overrideColor);
+#ifndef COLD_REVNG
     m_locator = new Locator;
+#endif
     std::srand(unsigned(QDateTime::currentDateTime().toSecsSinceEpoch()));
     m_mainWindow->init();
     m_editMode = new EditMode;
@@ -164,7 +171,9 @@ bool CorePlugin::initialize(const QStringList &arguments, QString *errorMessage)
     SaveFile::initializeUmask();
 
     Find::initialize();
+#ifndef COLD_REVNG
     m_locator->initialize();
+#endif
 
     MacroExpander *expander = Utils::globalMacroExpander();
     expander->registerVariable("CurrentDate:ISO", tr("The current date (ISO)."),
@@ -224,7 +233,9 @@ void CorePlugin::extensionsInitialized()
 {
     DesignMode::createModeIfRequired();
     Find::extensionsInitialized();
+#ifndef COLD_REVNG
     m_locator->extensionsInitialized();
+#endif
     m_mainWindow->extensionsInitialized();
     if (ExtensionSystem::PluginManager::hasError()) {
         auto errorOverview = new ExtensionSystem::PluginErrorOverview(m_mainWindow);
@@ -236,7 +247,9 @@ void CorePlugin::extensionsInitialized()
 
 bool CorePlugin::delayedInitialize()
 {
+#ifndef COLD_REVNG
     m_locator->delayedInitialize();
+#endif
     IWizardFactory::allWizardFactories(); // scan for all wizard factories
     return true;
 }

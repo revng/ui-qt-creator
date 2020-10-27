@@ -108,6 +108,7 @@ QSize FancyTabBar::tabSizeHint(bool minimum) const
 
 void FancyTabBar::paintEvent(QPaintEvent *event)
 {
+#ifndef COLD_REVNG
     QPainter p(this);
     if (creatorTheme()->flag(Theme::FlatToolBars)) {
         // draw background of upper part of left tab widget
@@ -122,6 +123,7 @@ void FancyTabBar::paintEvent(QPaintEvent *event)
     // paint active tab last, since it overlaps the neighbors
     if (currentIndex() != -1)
         paintTab(&p, currentIndex());
+#endif
 }
 
 // Handle hover events for mouse fade ins
@@ -473,7 +475,9 @@ FancyTabWidget::FancyTabWidget(QWidget *parent)
     layout->addWidget(fancyButton);
     selectionLayout->addWidget(bar);
 
+#ifndef COLD_REVNG
     selectionLayout->addWidget(m_tabBar, 1);
+#endif
     m_selectionWidget->setLayout(selectionLayout);
     m_selectionWidget->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
 

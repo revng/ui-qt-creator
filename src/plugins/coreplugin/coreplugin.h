@@ -42,7 +42,9 @@ namespace Internal {
 
 class EditMode;
 class MainWindow;
+#ifndef COLD_REVNG
 class Locator;
+#endif
 
 class CorePlugin : public ExtensionSystem::IPlugin
 {
@@ -73,8 +75,10 @@ private slots:
     void testSplitLineAndColumnNumber();
     void testSplitLineAndColumnNumber_data();
     // Locator:
+#ifndef COLD_REVNG
     void test_basefilefilter();
     void test_basefilefilter_data();
+#endif
 #endif
 
 private:
@@ -82,7 +86,9 @@ private:
 
     MainWindow *m_mainWindow = nullptr;
     EditMode *m_editMode = nullptr;
+#ifndef COLD_REVNG
     Locator *m_locator = nullptr;
+#endif
     ReaperPrivate m_reaper;
 };
 

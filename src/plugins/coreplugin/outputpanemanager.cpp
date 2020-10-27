@@ -237,7 +237,9 @@ OutputPaneManager::OutputPaneManager(QWidget *parent) :
     m_buttonsWidget->layout()->setSpacing(
             creatorTheme()->flag(Theme::FlatToolBars) ? 9 : 4);
 
+#ifndef COLD_REVNG
     StatusBarManager::addStatusBarWidget(m_buttonsWidget, StatusBarManager::Second);
+#endif
 
     ActionContainer *mwindow = ActionManager::actionContainer(Constants::M_WINDOW);
 
@@ -365,7 +367,13 @@ OutputPaneManager::OutputPaneManager(QWidget *parent) :
     readSettings();
 }
 
+#ifndef COLD_REVNG
 OutputPaneManager::~OutputPaneManager() = default;
+#else
+OutputPaneManager::~OutputPaneManager() {
+    delete m_buttonsWidget;
+}
+#endif
 
 void OutputPaneManager::shortcutTriggered(int idx)
 {
