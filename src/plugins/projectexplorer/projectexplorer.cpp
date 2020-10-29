@@ -588,7 +588,9 @@ bool ProjectExplorerPlugin::initialize(const QStringList &arguments, QString *er
     ToolChainManager::registerLanguage(Constants::C_LANGUAGE_ID, tr("C"));
     ToolChainManager::registerLanguage(Constants::CXX_LANGUAGE_ID, tr("C++"));
 
+#ifndef COLD_REVNG
     IWizardFactory::registerFeatureProvider(new KitFeatureProvider);
+#endif
 
     // Register KitInformation:
     KitManager::registerKitInformation<DeviceTypeKitInformation>();
@@ -597,12 +599,14 @@ bool ProjectExplorerPlugin::initialize(const QStringList &arguments, QString *er
     KitManager::registerKitInformation<SysRootKitInformation>();
     KitManager::registerKitInformation<EnvironmentKitInformation>();
 
+#ifndef COLD_REVNG
     IWizardFactory::registerFactoryCreator([]() -> QList<IWizardFactory *> {
         QList<IWizardFactory *> result;
         result << CustomWizard::createWizards();
         result << JsonWizardFactory::createWizardFactories();
         return result;
     });
+#endif
 
     connect(&dd->m_welcomePage, &ProjectWelcomePage::manageSessions,
             dd, &ProjectExplorerPluginPrivate::showSessionManager);
@@ -641,6 +645,7 @@ bool ProjectExplorerPlugin::initialize(const QStringList &arguments, QString *er
                                                                       : Utils::FileName());
     });
 
+#ifndef COLD_REVNG
     // For JsonWizard:
     JsonWizardFactory::registerPageFactory(new FieldPageFactory);
     JsonWizardFactory::registerPageFactory(new FilePageFactory);
@@ -650,6 +655,7 @@ bool ProjectExplorerPlugin::initialize(const QStringList &arguments, QString *er
 
     JsonWizardFactory::registerGeneratorFactory(new FileGeneratorFactory);
     JsonWizardFactory::registerGeneratorFactory(new ScannerGeneratorFactory);
+#endif
 
     dd->m_proWindow = new ProjectWindow;
 

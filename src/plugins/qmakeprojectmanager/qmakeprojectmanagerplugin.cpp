@@ -142,6 +142,7 @@ bool QmakeProjectManagerPlugin::initialize(const QStringList &arguments, QString
 
     ProjectExplorer::KitManager::registerKitInformation<QmakeKitInformation>();
 
+#ifndef COLD_REVNG
     IWizardFactory::registerFactoryCreator([] {
         return QList<IWizardFactory *> {
             new SubdirsProjectWizard,
@@ -151,6 +152,7 @@ bool QmakeProjectManagerPlugin::initialize(const QStringList &arguments, QString
             new SimpleProjectWizard
         };
     });
+#endif
 
     //menus
     ActionContainer *mbuild =
