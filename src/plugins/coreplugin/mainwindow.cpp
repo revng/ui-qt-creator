@@ -479,11 +479,13 @@ void MainWindow::registerDefaultActions()
     mfile->addAction(cmd, Constants::G_FILE_OPEN);
     connect(m_openAction, &QAction::triggered, this, &MainWindow::openFile);
 
+#ifndef COLD_REVNG
     // Open With Action
     m_openWithAction = new QAction(tr("Open File &With..."), this);
     cmd = ActionManager::registerAction(m_openWithAction, Constants::OPEN_WITH);
     mfile->addAction(cmd, Constants::G_FILE_OPEN);
     connect(m_openWithAction, &QAction::triggered, this, &MainWindow::openFileWith);
+#endif
 
     // File->Recent Files Menu
     ActionContainer *ac = ActionManager::createMenu(Constants::M_FILE_RECENTFILES);
