@@ -95,11 +95,13 @@ ToolChainManager::ToolChainManager(QObject *parent) :
 
     d = new ToolChainManagerPrivate;
 
+#ifndef COLD_REVNG
     connect(Core::ICore::instance(), &Core::ICore::saveSettingsRequested,
             this, &ToolChainManager::saveToolChains);
     connect(this, &ToolChainManager::toolChainAdded, this, &ToolChainManager::toolChainsChanged);
     connect(this, &ToolChainManager::toolChainRemoved, this, &ToolChainManager::toolChainsChanged);
     connect(this, &ToolChainManager::toolChainUpdated, this, &ToolChainManager::toolChainsChanged);
+#endif
 }
 
 ToolChainManager::~ToolChainManager()
@@ -119,17 +121,21 @@ void ToolChainManager::restoreToolChains()
     QTC_ASSERT(!d->m_accessor, return);
     d->m_accessor = std::make_unique<Internal::ToolChainSettingsAccessor>();
 
+#ifndef COLD_REVNG
     for (ToolChain *tc : d->m_accessor->restoreToolChains(Core::ICore::dialogParent()))
         registerToolChain(tc);
+#endif
 
     emit m_instance->toolChainsLoaded();
 }
 
 void ToolChainManager::saveToolChains()
 {
+#ifndef COLD_REVNG
     QTC_ASSERT(d->m_accessor, return);
 
     d->m_accessor->saveToolChains(d->m_toolChains, Core::ICore::dialogParent());
+#endif
 }
 
 QList<ToolChain *> ToolChainManager::toolChains(const ToolChain::Predicate &predicate)

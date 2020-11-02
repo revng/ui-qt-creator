@@ -1717,10 +1717,12 @@ void ProjectExplorerPlugin::extensionsInitialized()
 void ProjectExplorerPlugin::restoreKits()
 {
     dd->determineSessionToRestoreAtStartup();
+#ifndef COLD_REVNG
     ExtraAbi::load(); // Load this before Toolchains!
     DeviceManager::instance()->load();
     ToolChainManager::restoreToolChains();
     dd->m_kitManager->restoreKits();
+#endif
     QTimer::singleShot(0, dd, &ProjectExplorerPluginPrivate::restoreSession); // delay a bit...
 }
 
