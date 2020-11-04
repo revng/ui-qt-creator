@@ -73,6 +73,7 @@ VersionDialog::VersionDialog(QWidget *parent)
 
     const QString description = tr(
         "<h3>%1</h3>"
+        "Powered by QtCreator<br/>"
         "%2<br/>"
         "%3"
         "%4"
