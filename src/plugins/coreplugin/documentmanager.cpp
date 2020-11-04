@@ -727,6 +727,7 @@ bool DocumentManager::saveDocument(IDocument *document, const QString &fileName,
 
 QString DocumentManager::allDocumentFactoryFiltersString(QString *allFilesFilter = nullptr)
 {
+#ifndef COLD_REVNG
     QSet<QString> uniqueFilters;
 
     for (IEditorFactory *factory : IEditorFactory::allEditorFactories()) {
@@ -752,6 +753,9 @@ QString DocumentManager::allDocumentFactoryFiltersString(QString *allFilesFilter
         *allFilesFilter = allFiles;
     filters.prepend(allFiles);
     return filters.join(QLatin1String(";;"));
+#else
+    return "rev.ng lifted binary (*.ll *.bc)";
+#endif
 }
 
 QString DocumentManager::getSaveFileName(const QString &title, const QString &pathIn,
