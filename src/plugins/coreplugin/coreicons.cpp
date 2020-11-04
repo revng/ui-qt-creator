@@ -31,7 +31,7 @@ namespace Core {
 namespace Icons {
 
 const Icon QTCREATORLOGO_BIG(
-        QLatin1String(":/core/images/qtcreatorlogo-big.png"));
+        QLatin1String(":/core/images/revnglogo-big.png"));
 const Icon FIND_CASE_INSENSITIVELY(
         QLatin1String(":/find/images/casesensitively.png"));
 const Icon FIND_WHOLE_WORD(

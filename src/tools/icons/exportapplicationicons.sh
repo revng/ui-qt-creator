@@ -65,7 +65,7 @@ for uiFileIconSize in 16 24 32 48 64 128 256 512;\
 do
     creatorLogoSource="qtcreator_icon_${uiFileIconSize}x${uiFileIconSize}.png"
     creatorLogoTargetDir="${creatorLogoDir}/${uiFileIconSize}"
-    creatorLogoTarget="${creatorLogoTargetDir}/QtProject-qtcreator.png"
+    creatorLogoTarget="${creatorLogoTargetDir}/revng.png"
     optipng $creatorLogoSource -o 7 -strip all
     mkdir $creatorLogoTargetDir
     cp $creatorLogoSource $creatorLogoTarget
