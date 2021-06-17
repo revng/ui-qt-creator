@@ -19,7 +19,7 @@ mac {
     SUBDIRS += iostool
 }
 
-SUBDIRS += clangbackend
+# SUBDIRS += clangbackend
 
 QTC_ENABLE_CLANG_LIBTOOLING=$$(QTC_ENABLE_CLANG_LIBTOOLING)
 !isEmpty(QTC_ENABLE_CLANG_LIBTOOLING) {
