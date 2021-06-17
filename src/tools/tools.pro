@@ -11,9 +11,7 @@ isEmpty(QTC_SKIP_SDKTOOL): SUBDIRS += sdktool
 qtHaveModule(quick-private): SUBDIRS += qml2puppet
 
 win32 {
-    SUBDIRS += qtcdebugger \
-        winrtdebughelper
-
+    SUBDIRS += qtcdebugger
     isEmpty(QTC_SKIP_WININTERRUPT): SUBDIRS += wininterrupt
 }
 
